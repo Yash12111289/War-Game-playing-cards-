@@ -1,83 +1,79 @@
 import random
+ranks=['2','3','4','5','6','7','8','9','10','Jack','Queen','King','Ace']
+suits=['Hearts','Diamonds','Clubs','Spades']
+values={r:i+2 for i,r in enumerate(ranks)}
 
-ranks = ['2','3','4','5','6','7','8','9','10','J','Q','K','A']
-values = {r: i+2 for i, r in enumerate(ranks)}
+class Card:
+    def __init__(self,rank,suit):
+        self.rank = rank
+        self.suit = suit
+        self.value = values[rank]
+    def __str__(self):
+        return f'{self.rank} of {self.suit}'
 
 class Deck:
     def __init__(self):
-        self.cards = ranks * 4
+        self.cards=[Card(r,s) for s in suits for r in ranks]
     def shuffle(self):
         random.shuffle(self.cards)
-    def split(self):
-        return self.cards[:26], self.cards[26:]
+    def deal_one(self):
+        return self.cards.pop()
 
 class Player:
-    def __init__(self, name):
+    def __init__(self,name):
         self.name = name
-        self.cards = []
-    def receive(self, cards):
-        self.cards = cards
-    def play_card(self):
-        return self.cards.pop(0) if self.cards else None
-    def add_cards(self, won_cards):
-        if isinstance(won_cards, list):
-            self.cards.extend(won_cards)
+        self.pile=[]
+    def remove_one(self):
+        return self.pile.pop(0)
+    def add_new(self,new_cards):
+        if type(new_cards)==type([]):
+            self.pile.extend(new_cards)
         else:
-            self.cards.append(won_cards)
+            self.pile.append(new_cards)
+    def __str__(self):
+        return f'Player {self.name} has {len(self.pile)} cards'
 
-class Game:
-    def __init__(self):
-        print("Welcome to the War Card Game!")
-        self.deck = Deck()
-        self.p1 = Player("Yash")
-        self.p2 = Player("Chinni")
-    def setup(self):
-        self.deck.shuffle()
-        c1, c2 = self.deck.split()
-        self.p1.receive(c1)
-        self.p2.receive(c2)
-        print(f"Game started between {self.p1.name} and {self.p2.name}!\n")
-    def war(self):
-        if not self.p1.cards or not self.p2.cards:
-            return
-        c1 = self.p1.play_card()
-        c2 = self.p2.play_card()
-        table = [c1, c2]
-        if c1 is None or c2 is None:
-            return
-        if values[c1] > values[c2]:
-            self.p1.add_cards(table)
-        elif values[c2] > values[c1]:
-            self.p2.add_cards(table)
-        else:
-            self.handle_war(c1, c2, table)
-    def handle_war(self, c1, c2, table):
-        while values[c1] == values[c2]:#war condition
-            if len(self.p1.cards) < 4 or len(self.p2.cards) < 4:# not enough cards
-                return
-            war_c1 = [self.p1.play_card() for _ in range(3)]
-            war_c2 = [self.p2.play_card() for _ in range(3)]
-            c1 = self.p1.play_card()
-            c2 = self.p2.play_card()
-            table += war_c1 + war_c2 + [c1, c2]
-        if values[c1] > values[c2]:# Winner takes all cards on the table
-            self.p1.add_cards(table)
-        else:
-            self.p2.add_cards(table)
-    def check_winner(self):
-        if not self.p1.cards:# Check if any player ran out of cards
-            print(f"{self.p2.name} wins the game!")
-            return True
-        elif not self.p2.cards:
-            print(f"{self.p1.name} wins the game!")
-            return True
-        return False
-    def start(self):
-        # Main game loop
-        self.setup()
-        while not self.check_winner():
-            self.war()
-        print("Game Over.")
+#========================  game logic  ====================================
+p1=Player('chinni')
+p2=Player('yash')
+new_deck=Deck()
+new_deck.shuffle()
+for x in range(26):
+    p1.add_new(new_deck.deal_one())
+    p2.add_new(new_deck.deal_one())
+game_on=True
+round_count=0
+while game_on:
+    round_count+=1
+    if len(p1.pile)==0 or len(p2.pile)==0:
+        winner=p1.name if len(p1.pile)<5 else p2.name
+        print(f'Player {winner} has won!')
+        game_on=False
+        break
+    p1_card=[p1.remove_one()]
+    p2_card=[p2.remove_one()]
+    war=True
+    while war:
+        if p1_card[-1].value > p2_card[-1].value:
+            p1.add_new(p1_card+p2_card)
+            war=False
 
-g = Game()
-g.start()
+        elif p1_card[-1].value < p2_card[-1].value:
+            p2.add_new(p1_card+p2_card)
+            war=False
+        else:
+            if len(p1.pile)<5:
+                print(f"Player {p1.name} out of cards Player {p2.name} won the match")
+                war=False
+                game_on=False
+                break
+            elif len(p2.pile)<5:
+                print(f"Player {p2.name} out of cards Player {p1.name} won the match")
+                war=False
+                game_on=False
+                break
+            else:
+                for _ in range(5):
+                    p1_card.append(p1.remove_one())
+                    p2_card.append(p2.remove_one())
+print("gave over")
