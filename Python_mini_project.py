@@ -1,156 +1,83 @@
 import random
 
-class Card:
-    ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
-    suits = ['Hearts', 'Diamonds', 'Clubs', 'Spades']
-    rank_values = {rank: i + 2 for i, rank in enumerate(ranks)}
-
-    def __init__(self, rank, suit):
-        if rank not in Card.ranks or suit not in Card.suits:
-            raise ValueError("Invalid rank or suit")
-        self.rank = rank
-        self.suit = suit
-
-    @property
-    def value(self):
-        return Card.rank_values[self.rank]
-
-    def __repr__(self):
-        return f"{self.rank} of {self.suit}"
-
-    def __lt__(self, other):
-        return self.value < other.value
-
-    def __gt__(self, other):
-        return self.value > other.value
-
-    def __eq__(self, other):
-        return self.value == other.value
+ranks = ['2','3','4','5','6','7','8','9','10','J','Q','K','A']
+values = {r: i+2 for i, r in enumerate(ranks)}
 
 class Deck:
     def __init__(self):
-        self.cards = [Card(rank, suit) for suit in Card.suits for rank in Card.ranks]
-        self.shuffle()
-
+        self.cards = ranks * 4
     def shuffle(self):
         random.shuffle(self.cards)
-
-    def draw(self):
-        return self.cards.pop() if self.cards else None
-
-    def deal_half(self):
-        half = len(self.cards) // 2
-        return self.cards[:half], self.cards[half:]
+    def split(self):
+        return self.cards[:26], self.cards[26:]
 
 class Player:
     def __init__(self, name):
         self.name = name
-        self.pile = []
-
-    def has_cards(self):
-        return len(self.pile) > 0
-
+        self.cards = []
+    def receive(self, cards):
+        self.cards = cards
     def play_card(self):
-        return self.pile.pop(0) if self.pile else None  # FIFO
-
-    def receive_cards(self, cards):
-        self.pile.extend(cards)  # add to bottom
-
-    def card_count(self):
-        return len(self.pile)
-
-class WarGame:
-    def __init__(self, player1_name, player2_name):
-        self.p1 = Player(player1_name)
-        self.p2 = Player(player2_name)
-        self.turn_count = 0
-        self.war_count = 0
-        self.max_turns = 10000  # safety to avoid infinite loops
-
-    def setup(self):
-        deck = Deck()
-        pile1, pile2 = deck.deal_half()
-        self.p1.receive_cards(pile1)
-        self.p2.receive_cards(pile2)
-
-    def play_round(self):
-        if not self.p1.has_cards() or not self.p2.has_cards():
-            return False
-
-        self.turn_count += 1
-        table_cards = []
-
-        card1 = self.p1.play_card()
-        card2 = self.p2.play_card()
-        table_cards.extend([card1, card2])
-
-        if card1 > card2:
-            self.p1.receive_cards(table_cards)
-        elif card2 > card1:
-            self.p2.receive_cards(table_cards)
+        return self.cards.pop(0) if self.cards else None
+    def add_cards(self, won_cards):
+        if isinstance(won_cards, list):
+            self.cards.extend(won_cards)
         else:
-            # WAR scenario
-            self.handle_war(table_cards)
+            self.cards.append(won_cards)
 
-        return True
-
-    def handle_war(self, table_cards):
-        self.war_count += 1
-        print(f"\n⚔️  WAR! (Turn {self.turn_count})")
-
-        while True:
-            if not self.p1.has_cards() or not self.p2.has_cards():
+class Game:
+    def __init__(self):
+        print("Welcome to the War Card Game!")
+        self.deck = Deck()
+        self.p1 = Player("Yash")
+        self.p2 = Player("Chinni")
+    def setup(self):
+        self.deck.shuffle()
+        c1, c2 = self.deck.split()
+        self.p1.receive(c1)
+        self.p2.receive(c2)
+        print(f"Game started between {self.p1.name} and {self.p2.name}!\n")
+    def war(self):
+        if not self.p1.cards or not self.p2.cards:
+            return
+        c1 = self.p1.play_card()
+        c2 = self.p2.play_card()
+        table = [c1, c2]
+        if c1 is None or c2 is None:
+            return
+        if values[c1] > values[c2]:
+            self.p1.add_cards(table)
+        elif values[c2] > values[c1]:
+            self.p2.add_cards(table)
+        else:
+            self.handle_war(c1, c2, table)
+    def handle_war(self, c1, c2, table):
+        while values[c1] == values[c2]:#war condition
+            if len(self.p1.cards) < 4 or len(self.p2.cards) < 4:# not enough cards
                 return
-
-            # each player puts down 3 face-down and 1 face-up if possible
-            facedown = 3
-            war_pile = []
-
-            for _ in range(facedown):
-                if self.p1.has_cards():
-                    war_pile.append(self.p1.play_card())
-                if self.p2.has_cards():
-                    war_pile.append(self.p2.play_card())
-
-            if not self.p1.has_cards() or not self.p2.has_cards():
-                return
-
+            war_c1 = [self.p1.play_card() for _ in range(3)]
+            war_c2 = [self.p2.play_card() for _ in range(3)]
             c1 = self.p1.play_card()
             c2 = self.p2.play_card()
-            war_pile.extend([c1, c2])
-            table_cards.extend(war_pile)
-
-            if c1 > c2:
-                self.p1.receive_cards(table_cards)
-                break
-            elif c2 > c1:
-                self.p2.receive_cards(table_cards)
-                break
-            else:
-                print("Another tie — continuing WAR!")
-                continue  # another tie → new loop
-
-    def play_game(self):
-        self.setup()
-        print("Starting the War Game...\n")
-
-        while self.p1.has_cards() and self.p2.has_cards() and self.turn_count < self.max_turns:
-            self.play_round()
-
-        self.show_result()
-
-    def show_result(self):
-        print("\n------ GAME OVER ------")
-        print(f"Total turns: {self.turn_count}, Wars: {self.war_count}")
-        if self.p1.has_cards() and not self.p2.has_cards():
-            print(f"🏆 Winner: {self.p1.name}")
-        elif self.p2.has_cards() and not self.p1.has_cards():
-            print(f"🏆 Winner: {self.p2.name}")
+            table += war_c1 + war_c2 + [c1, c2]
+        if values[c1] > values[c2]:# Winner takes all cards on the table
+            self.p1.add_cards(table)
         else:
-            print("It's a draw (turn limit reached)!")
+            self.p2.add_cards(table)
+    def check_winner(self):
+        if not self.p1.cards:# Check if any player ran out of cards
+            print(f"{self.p2.name} wins the game!")
+            return True
+        elif not self.p2.cards:
+            print(f"{self.p1.name} wins the game!")
+            return True
+        return False
+    def start(self):
+        # Main game loop
+        self.setup()
+        while not self.check_winner():
+            self.war()
+        print("Game Over.")
 
-
-# -------------------- Run Game --------------------
-if __name__ == "__main__":
-    game = WarGame("Yaswanth", "Computer")
-    game.play_game()
+g = Game()
+g.start()
